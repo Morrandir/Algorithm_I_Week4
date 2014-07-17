@@ -1,6 +1,4 @@
 import java.util.Arrays;
-import java.util.Iterator;
-import java.util.ListIterator;
 
 /**
  * Created by Morrandir on 2014/7/15.
@@ -163,11 +161,11 @@ public class Board {
         // string representation of the board (in the output format specified below)
         String output = "";
 
+        output += Integer.toString(N);
+        output += "\n";
         for (int i = 0; i < N; i++) {
             for (int j = 0; j < N; j++) {
-                output += " ";
-                output += Integer.toString(blocks[i * N + j]);
-                output += " ";
+                output += String.format("%2d ", blocks[i * N + j]);
             }
             output += "\n";
         }
