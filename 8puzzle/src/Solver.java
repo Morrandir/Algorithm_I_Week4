@@ -1,12 +1,10 @@
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Created by Qubo Song on 7/17/2014.
  */
 public class Solver {
 
     private boolean isSolvable;
+    private int moves;
     private Queue<SearchNode> goals = new Queue<SearchNode>();
     //Queue<SearchNode> twinGoals = new Queue<SearchNode>();
 
@@ -32,6 +30,9 @@ public class Solver {
 
         @Override
         public int compareTo(SearchNode o) {
+            if (this.priority == o.priority) {
+                return Integer.compare(this.moves, o.moves);
+            }
             return Integer.compare(this.priority, o.priority);
         }
     }
@@ -43,28 +44,26 @@ public class Solver {
         MinPQ<SearchNode> twinGameTree = new MinPQ<SearchNode>();
         SearchNode initSN = new SearchNode(initial);
         SearchNode twinInitSN = new SearchNode(initial.twin());
-        List<Board> preBoards = new ArrayList<Board>();
-        List<Board> twinPreBoards = new ArrayList<Board>();
 
         gameTree.insert(initSN);
         twinGameTree.insert(twinInitSN);
-        preBoards.add(initSN.board);
-        twinPreBoards.add(twinInitSN.board);
 
         boolean searching = true;
-        while (searching) {
-            //System.out.printf("%d%n", gameTree.size());
+        boolean twinSearching = true;
+        while (searching || twinSearching) {
             if (!gameTree.isEmpty()) {
                 SearchNode current = gameTree.delMin();
+                //System.out.printf("%d%n", current.moves);
                 if (current.board.isGoal()) {
+                    moves = current.moves;
                     goals.enqueue(current);
                     break;
                 }
                 for (Board neighbor : current.board.neighbors()) {
-                    if (!preBoards.contains(neighbor)) {
+                    if (current.previous == null
+                            || !neighbor.equals(current.previous.board)) {
                         SearchNode next = new SearchNode(neighbor, current);
                         gameTree.insert(next);
-                        preBoards.add(neighbor);
                     }
                 }
             } else {
@@ -78,14 +77,14 @@ public class Solver {
                     break;
                 }
                 for (Board neighbor : current.board.neighbors()) {
-                    if (!twinPreBoards.contains(neighbor)) {
+                    if (current.previous == null
+                            || !neighbor.equals(current.previous.board)) {
                         SearchNode next = new SearchNode(neighbor, current);
                         twinGameTree.insert(next);
-                        twinPreBoards.add(neighbor);
                     }
                 }
             } else {
-                searching = false;
+                twinSearching = false;
             }
         }
 
@@ -99,7 +98,7 @@ public class Solver {
     public int moves() {
         // min number of moves to solve initial board; -1 if no solution
         if (isSolvable) {
-            return goals.peek().moves;
+            return moves;
         } else {
             return -1;
         }
@@ -109,7 +108,7 @@ public class Solver {
         // sequence of boards in a shortest solution; null if no solution
         if (isSolvable) {
             Stack<Board> solution = new Stack<Board>();
-            SearchNode goal = goals.dequeue();
+            SearchNode goal = goals.peek();
 
             for (SearchNode move = goal; move != null; move = move.previous) {
                 solution.push(move.board);

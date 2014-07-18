@@ -5,67 +5,82 @@ import java.util.Arrays;
  */
 public class Board {
 
-    private int[] blocks;
-    private int[] goal;
+    private int[][] blocks;
     private int N;
+    private boolean hasH;
+    private int heuristic;
 
     public Board(int[][] blocks) {
         // construct a board from an N-by-N array of blocks
         // (where blocks[i][j] = block in row i, column j)
+        int[][] newBlocks;
+        hasH = false;
         N = blocks.length;
-        this.blocks = new int[N * N];
-        goal = new int[N * N];
+        newBlocks = new int[N][N];
 
-        for (int i = 0; i < N * N; i++) {
-            this.blocks[i] = blocks[i / N][i % N];
-            goal[i] = i + 1;
+        for (int i = 0; i < N; i++) {
+            newBlocks[i] = Arrays.copyOf(blocks[i], N);
         }
-
-        goal[goal.length - 1] = 0;
-
+        this.blocks = newBlocks;
     }
 
     public int dimension() {
         // board dimension N
-
         return N;
     }
 
     public int hamming() {
         // number of blocks out of place
-        int count = 0;
-        for (int i = 0; i < N * N; i++) {
-            if ((blocks[i] != goal[i]) && (blocks[i] != 0)) {
-                count++;
+        if (hasH) {
+            return heuristic;
+        } else {
+            heuristic = 0;
+            for (int i = 0; i < N; i++) {
+                for (int j = 0; j < N; j++) {
+                    if ((blocks[i][j] != i * N + j + 1) && (blocks[i][j] != 0)) {
+                        heuristic++;
+                    }
+                }
             }
+            hasH = true;
+            return heuristic;
         }
-        return count;
     }
 
     public int manhattan() {
         // sum of Manhattan distances between blocks and goal
-        int distance = 0;
+        if (hasH) {
+            return heuristic;
+        } else {
+            heuristic = 0;
 
-        for (int i = 0; i < N * N; i++) {
-            if ((blocks[i] != goal[i]) && (blocks[i] != 0)) {
-                if ((blocks[i] - 1) / N > i / N) {
-                    distance += (blocks[i] - 1) / N - i / N;
-                } else {
-                    distance += i / N - (blocks[i] - 1) /N;
-                }
-                if ((blocks[i] - 1) % N > i % N) {
-                    distance += (blocks[i] - 1) % N - i % N;
-                } else {
-                    distance += i % N - (blocks[i] - 1) % N;
+            for (int i = 0; i < N; i++) {
+                for (int j = 0; j < N; j++) {
+                    if ((blocks[i][j] != i * N + j + 1) && (blocks[i][j] != 0)) {
+                        if ((blocks[i][j] - 1) / N > i) {
+                            heuristic += (blocks[i][j] - 1) / N - i;
+                        } else {
+                            heuristic += i - (blocks[i][j] - 1) / N;
+                        }
+                        if ((blocks[i][j] - 1) % N > j) {
+                            heuristic += (blocks[i][j] - 1) % N - j;
+                        } else {
+                            heuristic += j - (blocks[i][j] - 1) % N;
+                        }
+                    }
                 }
             }
+            hasH = true;
+            return heuristic;
         }
-        return distance;
     }
 
     public boolean isGoal() {
         // is this board the goal board?
-        return Arrays.equals(blocks, goal);
+        if (!hasH) {
+            manhattan();
+        }
+        return heuristic == 0;
     }
 
     private void swap(int[][] array, int i1, int j1, int i2, int j2) {
@@ -78,80 +93,77 @@ public class Board {
         // a board obtained by exchanging two adjacent blocks in the same row
         int[][] twinBlocks = new int[N][N];
 
-        for (int i = 0; i < N * N; i++) {
-            twinBlocks[i / N][i % N] = blocks[i];
+        for (int i = 0; i < N; i++) {
+            twinBlocks[i] = Arrays.copyOf(blocks[i], N);
         }
 
         for (int i = 0; i < N; i++) {
-            boolean breaking = false;
-
             for (int j = 0; j < N - 1; j++) {
                 if (twinBlocks[i][j] != 0 && twinBlocks[i][j + 1] != 0) {
                     swap(twinBlocks, i, j, i, j + 1);
-                    breaking = true;
-                    break;
+                    return new Board(twinBlocks);
                 }
             }
-
-            if (breaking) break;
         }
 
-        return new Board(twinBlocks);
+        return null; // should never reach here
     }
 
     public boolean equals(Object y) {
         // does this board equal y?
+
         if (y == this) return true;
         if (y == null) return false;
         if (!y.getClass().equals(this.getClass())) return false;
 
-        return this.toString().equals(y.toString());
+        Board that = (Board) y;
+        for (int i = 0; i < N; i++) {
+            if (!Arrays.equals(blocks[i], that.blocks[i])) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public Iterable<Board> neighbors() {
         // all neighboring boards
         Queue<Board> neighbors = new Queue<Board>();
-        int index = 0;
         int indexI;
-        int indexJ;
+        int indexJ = 0;
 
-        for (int i = 0; i < N * N; i++) {
-            if (blocks[i] == 0) {
-                index = i;
-                break;
+        for (indexI = 0; indexI < N; indexI++) {
+            boolean found0 = false;
+            for (indexJ = 0; indexJ < N; indexJ++) {
+                if (blocks[indexI][indexJ] == 0) {
+                    found0 = true;
+                    break;
+                }
             }
-        }
-
-        indexI = index / N;
-        indexJ = index % N;
-        int[][] newBlocks = new int[N][N];
-
-        for (int i = 0; i < N * N; i++) {
-            newBlocks[i / N][i % N] = blocks[i];
+            if (found0) break;
         }
 
         if (indexI != 0) {
-            swap(newBlocks, indexI - 1, indexJ, indexI, indexJ);
-            neighbors.enqueue(new Board(newBlocks));
-            swap(newBlocks, indexI - 1, indexJ, indexI, indexJ);
+            swap(blocks, indexI - 1, indexJ, indexI, indexJ);
+            neighbors.enqueue(new Board(blocks));
+            swap(blocks, indexI - 1, indexJ, indexI, indexJ);
         }
 
         if (indexI != N - 1) {
-            swap(newBlocks, indexI + 1, indexJ, indexI, indexJ);
-            neighbors.enqueue(new Board(newBlocks));
-            swap(newBlocks, indexI + 1, indexJ, indexI, indexJ);
+            swap(blocks, indexI + 1, indexJ, indexI, indexJ);
+            neighbors.enqueue(new Board(blocks));
+            swap(blocks, indexI + 1, indexJ, indexI, indexJ);
         }
 
         if (indexJ != 0) {
-            swap(newBlocks, indexI, indexJ - 1, indexI, indexJ);
-            neighbors.enqueue(new Board(newBlocks));
-            swap(newBlocks, indexI, indexJ - 1, indexI, indexJ);
+            swap(blocks, indexI, indexJ - 1, indexI, indexJ);
+            neighbors.enqueue(new Board(blocks));
+            swap(blocks, indexI, indexJ - 1, indexI, indexJ);
         }
 
         if (indexJ != N - 1) {
-            swap(newBlocks, indexI, indexJ + 1, indexI, indexJ);
-            neighbors.enqueue(new Board(newBlocks));
-            swap(newBlocks, indexI, indexJ + 1, indexI, indexJ);
+            swap(blocks, indexI, indexJ + 1, indexI, indexJ);
+            neighbors.enqueue(new Board(blocks));
+            swap(blocks, indexI, indexJ + 1, indexI, indexJ);
         }
 
         return neighbors;
@@ -165,7 +177,7 @@ public class Board {
         output += "\n";
         for (int i = 0; i < N; i++) {
             for (int j = 0; j < N; j++) {
-                output += String.format("%2d ", blocks[i * N + j]);
+                output += String.format("%2d ", blocks[i][j]);
             }
             output += "\n";
         }
